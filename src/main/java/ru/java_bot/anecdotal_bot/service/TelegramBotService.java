@@ -6,8 +6,10 @@ import com.pengrad.telegrambot.model.*;
 import com.pengrad.telegrambot.model.request.ParseMode;
 import com.pengrad.telegrambot.request.SendMessage;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import ru.java_bot.anecdotal_bot.model.JokeModel;
+import ru.java_bot.anecdotal_bot.model.JokeWithCount;
 
 import java.util.List;
 import java.util.Optional;
@@ -49,7 +51,7 @@ public class TelegramBotService {
 
             if (command.equals("/start")) {
                 // Отправляем приветственное сообщение
-                sendMessage(update.message().chat().id());
+                sendMessage(update.message().chat().id(), "Анекдоты не найдены.");
             } else if (command.equals("/add")) {
                 // Устанавливаем флаг добавления шутки
                 isAddingJoke = true;
@@ -73,6 +75,9 @@ public class TelegramBotService {
                 isViewingJoke = true;
                 // Просим пользователя ввести ID шутки для просмотра
                 handleAskViewJoke(update.message().chat().id());
+            } else if (command.equals("/random")) {
+                // Выполняем функцию обработки случайной шутки
+                handleRandomJoke(update.message().chat().id());
             } else if (isAddingJoke) {
                 // Сбрасываем флаг добавления шутки
                 isAddingJoke = false;
@@ -81,8 +86,11 @@ public class TelegramBotService {
             } else if (isViewingJoke) {
                 // Сбрасываем флаг просмотра шутки
                 isViewingJoke = false;
-                // Обрабатываем ID шутки для просмотра
-                handleViewJoke(update.message().chat().id(), command);
+                // Получаем userId из объекта Message
+                Long userId = update.message().from().id();
+
+                // Обрабатываем ID шутки для просмотра, передавая userId
+                handleViewJoke(update.message().chat().id(), command, userId);
             } else if (isEditingJoke) {
                 // Проверяем, введен ли уже ID шутки
                 if (jokeIdForEdit == null) {
@@ -92,8 +100,9 @@ public class TelegramBotService {
                     SendMessage request = new SendMessage(update.message().chat().id(), "Введите новый текст шутки:");
                     this.telegramBot.execute(request);
                 } else {
+                    Long userId = update.message().from().id();
                     // Вызываем функцию для изменения текста шутки
-                    handleEditJoke(update.message().chat().id(), jokeIdForEdit, command);
+                    handleEditJoke(update.message().chat().id(), jokeIdForEdit, command, userId);
                     // Сбрасываем переменную ID для редактирования
                     jokeIdForEdit = null;
                     // Сбрасываем флаг редактирования
@@ -102,11 +111,15 @@ public class TelegramBotService {
             } else if (isDeletingJoke) {
                 // Сбрасываем флаг удаления шутки
                 isDeletingJoke = false;
+                Long userId = update.message().from().id();
                 // Вызываем функцию для удаления шутки
-                handleDeleteJoke(update.message().chat().id(), command);
+                handleDeleteJoke(update.message().chat().id(), command, userId);
+            } else if (command.equals("/top5")) {
+                top5Jokes(update.message().chat().id());
             } else {
-                    buttonClickReact(update);
+                buttonClickReact(update);
             }
+
         }
     }
 
@@ -137,12 +150,24 @@ public class TelegramBotService {
     }
 
     private void handleViewAllJoke(Long chatId) {
-        // Получаем список всех шуток из сервиса
-        List<JokeModel> allJokes = jokeService.getAllJokes();
+        int currentPage = 0;
 
-        // Формируем строку с текстом ответа, включающую все шутки
-        StringBuilder response = new StringBuilder("Список всех анекдотов:\n");
-        for (JokeModel joke : allJokes) {
+        // Получаем список всех шуток из сервиса
+        Page<JokeModel> jokesPage = jokeService.getAllJokes(currentPage);
+
+        // Проверяем, есть ли анекдоты
+        if (jokesPage.isEmpty()) {
+            sendMessage(chatId, "Анекдоты не найдены.");
+            return;
+        }
+
+        // Отправляем первую страницу анекдотов
+        sendJokePage(chatId, jokesPage, currentPage);
+    }
+
+    private void sendJokePage(Long chatId, Page<JokeModel> jokesPage, int currentPage) {
+        StringBuilder response = new StringBuilder("Страница " + (currentPage + 1) + ":\n\n");
+        for (JokeModel joke : jokesPage.getContent()) {
             // Добавляем текст шутки
             response.append("Шутка: ").append(joke.getText()).append("\n");
             // Добавляем ID шутки
@@ -160,7 +185,7 @@ public class TelegramBotService {
         this.telegramBot.execute(request);
     }
 
-    private void sendMessage(Long chatId) {
+    private void sendMessage(Long chatId, String s) {
         // Отправляем приветственное сообщение с описанием функционала
         SendMessage request = new SendMessage(chatId, "Привет! Я анекдотический чат-бот. У меня есть команды:");
         this.telegramBot.execute(request);
@@ -172,13 +197,13 @@ public class TelegramBotService {
         this.telegramBot.execute(request);
     }
 
-    private void handleViewJoke(Long chatId, String jokeId) {
+    private void handleViewJoke(Long chatId, String jokeId, Long userId) {
         // Пытаемся преобразовать введенный текст в числовой ID
         try {
             Long jokeIdLong = Long.valueOf(jokeId);
 
-            // Запрашиваем шутку по ID
-            Optional<JokeModel> joke = jokeService.getJokeById(jokeIdLong);
+            // Запрашиваем шутку по ID, передавая userId
+            Optional<JokeModel> joke = jokeService.getJokeById(jokeIdLong, userId);
 
             // Проверяем, найдена ли шутка по ID
             if (joke.isPresent()) {
@@ -190,6 +215,8 @@ public class TelegramBotService {
                 SendMessage request = new SendMessage(chatId, "Шутка с таким ID не найдена");
                 this.telegramBot.execute(request);
             }
+
+
         } catch (NumberFormatException e) {
             // Введенный текст не является числом, отправляем сообщение об ошибке
             SendMessage request = new SendMessage(chatId, "Некорректный ID. Введите числовое значение.");
@@ -203,11 +230,11 @@ public class TelegramBotService {
         this.telegramBot.execute(request);
     }
 
-    private void handleDeleteJoke(Long chatId, String jokeId) {
+    private void handleDeleteJoke(Long chatId, String jokeId, Long userId) {
         // Пытаемся преобразовать введенный текст в числовой ID
         try {
             Long jokeIdLong = Long.valueOf(jokeId);
-            Optional<JokeModel> joke = jokeService.getJokeById(jokeIdLong);
+            Optional<JokeModel> joke = jokeService.getJokeById(jokeIdLong, userId);
             // Проверяем наличие шутки с введенным ID
             if (joke.isPresent()) {
                 // Удаляем шутку из сервиса
@@ -232,13 +259,13 @@ public class TelegramBotService {
         }
     }
 
-    private void handleEditJoke(Long chatId, String jokeId, String newJokeText) {
+    private void handleEditJoke(Long chatId, String jokeId, String newJokeText, Long userId) {
         // Пытаемся преобразовать введенный текст в числовой ID
         try {
             Long jokeIdLong = Long.parseLong(jokeId);
 
             // Проверяем, существует ли шутка с указанным ID
-            Optional<JokeModel> existingJoke = jokeService.getJokeById(jokeIdLong);
+            Optional<JokeModel> existingJoke = jokeService.getJokeById(jokeIdLong,  userId);
             if (existingJoke.isPresent()) {
                 // Создаем объект JokeModel с обновленным текстом
                 JokeModel updatedJoke = new JokeModel();
@@ -270,6 +297,46 @@ public class TelegramBotService {
         // Отправляем сообщение с просьбой ввести ID шутки для редактирования
         SendMessage request = new SendMessage(chatId, "Введите ID шутки для редактирования:");
         this.telegramBot.execute(request);
+    }
+
+    private void top5Jokes(Long chatId) {
+        // Получаем список всех шуток из сервиса
+        List<JokeWithCount> jokesCount = jokeService.getTop5Jokes();
+
+        // Формируем строку с текстом ответа, включающую все шутки
+        StringBuilder response = new StringBuilder("5 самых популярных шуток:\n");
+        for (JokeWithCount joke : jokesCount) {
+            // Добавляем текст шутки
+            response.append("Шутка: ").append(joke.getText()).append("\n");
+            // Добавляем ID шутки
+            response.append("ID: ").append(joke.getId()).append("\n");
+            // Добавляем дату создания
+            response.append("Дата создания: ").append(joke.getCreatedDate()).append("\n");
+            // Добавляем дату обновления
+            response.append("Дата обновления: ").append(joke.getUpdatedDate()).append("\n");
+            // Добавляем пустую строку для разделения шуток
+            response.append("\n");
+        }
+
+        // Отправляем сообщение с текстом всех шуток
+        SendMessage request = new SendMessage(chatId, response.toString());
+        this.telegramBot.execute(request);
+    }
+
+    private void handleRandomJoke(Long chatId) {
+
+        Optional<JokeModel> randomJoke = this.jokeService.getRandomJoke();
+
+        // Проверяем, была ли получена случайная шутка
+        if (randomJoke.isPresent()) {
+            // Отправляем случайную шутку пользователю
+            SendMessage responseMessage = new SendMessage(chatId, randomJoke.get().getText());
+            this.telegramBot.execute(responseMessage);
+        } else {
+            // Если случайная шутка не была найдена, отправляем сообщение об ошибке
+            SendMessage errorMessage = new SendMessage(chatId, "Не удалось найти случайную шутку.");
+            this.telegramBot.execute(errorMessage);
+        }
     }
 
 }

@@ -1,0 +1,65 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1718559080607-1
+      author: ??????
+      objectQuotingStrategy: QUOTE_ONLY_RESERVED_WORDS
+      changes:
+        - createSequence:
+            incrementBy: 1
+            sequenceName: call_id_seq
+            startValue: 1
+  - changeSet:
+      id: 1718559080607-2
+      author: ??????
+      objectQuotingStrategy: QUOTE_ONLY_RESERVED_WORDS
+      changes:
+        - createSequence:
+            incrementBy: 1
+            sequenceName: model_id_seq
+            startValue: 1
+  - changeSet:
+      id: 1718559080607-3
+      author: ??????
+      objectQuotingStrategy: QUOTE_ONLY_RESERVED_WORDS
+      changes:
+        - createTable:
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_calls
+                  name: id
+                  type: BIGINT
+              - column:
+                  name: user_id
+                  type: BIGINT
+              - column:
+                  name: time_call
+                  type: TIME
+            tableName: calls
+  - changeSet:
+      id: 1718559080607-4
+      author: ??????
+      objectQuotingStrategy: QUOTE_ONLY_RESERVED_WORDS
+      changes:
+        - createTable:
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_jokes
+                  name: id
+                  type: BIGINT
+              - column:
+                  name: joke_text
+                  type: VARCHAR(255)
+              - column:
+                  name: creation_date
+                  type: DATETIME
+              - column:
+                  name: updation_date
+                  type: DATETIME
+            tableName: jokes
+

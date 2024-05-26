@@ -6,29 +6,33 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.Date;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
 @ToString
-@Entity(name = "jokes")
+@Entity
 @Table(name = "jokes")
 public class JokeModel {
 
     @Id
-    @Column(name = "id")
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(generator = "model_id_seq", strategy = GenerationType.SEQUENCE)
+    @SequenceGenerator(name = "model_id_seq", sequenceName = "model_id_seq", allocationSize = 1)
     private Long id;
 
-    @Column(name = "текст шутки")
+    @Column(name = "joke_text", columnDefinition = "TEXT")
     private String text;
 
-    @Column(name = "дата создания")
+    @Column(name = "creation_date")
     @CreationTimestamp
+    @Temporal(TemporalType.TIMESTAMP)
     private LocalDateTime createdDate;
 
-    @Column(name = "дата обновления")
+    @Column(name = "updation_date")
     @UpdateTimestamp
+    @Temporal(TemporalType.TIMESTAMP)
     private LocalDateTime updatedDate;
+
 }
