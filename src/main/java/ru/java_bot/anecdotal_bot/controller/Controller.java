@@ -3,6 +3,7 @@ package ru.java_bot.anecdotal_bot.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import ru.java_bot.anecdotal_bot.model.JokeModel;
 import ru.java_bot.anecdotal_bot.model.JokeWithCount;
