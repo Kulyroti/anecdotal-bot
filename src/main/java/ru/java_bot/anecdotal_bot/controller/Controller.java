@@ -1,6 +1,7 @@
 package ru.java_bot.anecdotal_bot.controller;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -12,6 +13,7 @@ import ru.java_bot.anecdotal_bot.service.JokeService;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @RestController
 @RequestMapping("/jokes")
 @RequiredArgsConstructor

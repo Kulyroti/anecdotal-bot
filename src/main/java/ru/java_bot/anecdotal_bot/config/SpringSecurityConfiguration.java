@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import ru.java_bot.anecdotal_bot.model.UserAuthority;
 
+@Slf4j
 @Configuration
 @EnableWebSecurity
 public class SpringSecurityConfiguration {
